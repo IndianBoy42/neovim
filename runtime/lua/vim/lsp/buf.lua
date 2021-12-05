@@ -324,7 +324,7 @@ function M.document_symbol()
 end
 
 ---@private
-local function pick_call_hierarchy_item(call_hierarchy_items)
+local function pick_call_hierarchy_item(call_hierarchy_items, on_choice)
   if not call_hierarchy_items then return end
   if #call_hierarchy_items == 1 then
     return call_hierarchy_items[1]
@@ -334,11 +334,9 @@ local function pick_call_hierarchy_item(call_hierarchy_items)
     local entry = item.detail or item.name
     table.insert(items, string.format("%d. %s", i, entry))
   end
-  local choice = vim.fn.inputlist(items)
-  if choice < 1 or choice > #items then
-    return
-  end
-  return choice
+  vim.ui.select(items, {
+    prompt = "Pick Call Hierarchy Item"
+  }, on_choice)
 end
 
 ---@private
@@ -349,16 +347,17 @@ local function call_hierarchy(method)
       vim.notify(err.message, vim.log.levels.WARN)
       return
     end
-    local call_hierarchy_item = pick_call_hierarchy_item(result)
-    local client = vim.lsp.get_client_by_id(ctx.client_id)
-    if client then
-      client.request(method, { item = call_hierarchy_item }, nil, ctx.bufnr)
-    else
-      vim.notify(string.format(
-        'Client with id=%d disappeared during call hierarchy request', ctx.client_id),
-        vim.log.levels.WARN
-      )
-    end
+    pick_call_hierarchy_item(result, function(call_hierarchy_item)
+      local client = vim.lsp.get_client_by_id(ctx.client_id)
+      if client then
+        client.request(method, { item = call_hierarchy_item }, nil, ctx.bufnr)
+      else
+        vim.notify(
+          string.format('Client with id=%d disappeared during call hierarchy request', ctx.client_id),
+          vim.log.levels.WARN
+        )
+      end
+    end)
   end)
 end
 
